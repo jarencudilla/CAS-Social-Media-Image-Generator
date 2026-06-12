@@ -375,14 +375,14 @@
     .cards-grid.v3 { grid-template-columns: repeat(3, minmax(0,1fr)); }
     .cards-grid.v4 { grid-template-columns: repeat(2, minmax(0,1fr)); }
 
-    /* ── Individual card ──────────────────────────────────────────────── */
+    /* ── Individual card — movie poster / comic cover layout ─────────── */
     .card-wrap { display: flex; flex-direction: column; gap: 8px; }
 
     .card {
       position: relative;
       border-radius: var(--radius-lg);
       overflow: hidden;
-      background: var(--surface-2);
+      background: #0a0a0a;
       display: flex;
       align-items: flex-end;
     }
@@ -393,51 +393,76 @@
     .r-landscape .card{ aspect-ratio: 1.91/1; }
     .r-pinterest .card{ aspect-ratio: 2/3; }
 
+    /* Character fills full card — background-position: top to keep face visible */
     .card-bg {
       position: absolute;
       inset: 0;
       background-size: cover;
-      background-position: center;
+      background-position: center top;
     }
 
-    .card-overlay { position: absolute; inset: 0; }
+    /* Gradient only on bottom half — top stays clean so character shows */
+    .card-overlay {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
 
+    /* Accent bar at top edge */
+    .card-top-bar {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      z-index: 3;
+    }
+
+    /* Text anchored to bottom */
     .card-content {
       position: relative;
       z-index: 2;
-      padding: 18px;
+      padding: 20px 20px 18px;
       width: 100%;
     }
 
-    .card-brand {
-      font-family: var(--mono);
-      font-size: 9px;
-      font-weight: 500;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      margin-bottom: 10px;
-      opacity: 0.8;
-    }
-
+    /* Headline — movie title energy, big and bold */
     .card-headline {
-      font-weight: 500;
-      line-height: 1.25;
+      font-weight: 700;
+      line-height: 1.15;
+      letter-spacing: -0.01em;
       margin-bottom: 8px;
+      text-shadow: 0 2px 16px rgba(0,0,0,1), 0 0 40px rgba(0,0,0,0.9);
     }
 
+    /* Body — tight, sits under headline */
     .card-body {
-      line-height: 1.55;
+      line-height: 1.5;
       opacity: 0.85;
+      text-shadow: 0 1px 8px rgba(0,0,0,1);
     }
 
+    /* CTA — mono uppercase, accent color */
     .card-cta {
       margin-top: 12px;
       font-family: var(--mono);
       font-size: 10px;
       font-weight: 500;
-      letter-spacing: 0.06em;
+      letter-spacing: 0.1em;
       text-transform: uppercase;
-      opacity: 0.75;
+    }
+
+    /* Brand mark — tiny, bottom-right, outside the text flow */
+    .card-brand-mark {
+      position: absolute;
+      bottom: 14px;
+      right: 16px;
+      z-index: 4;
+      font-family: var(--mono);
+      font-size: 9px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      opacity: 0.45;
+      color: #ffffff;
+      pointer-events: none;
     }
 
     /* ── Card footer ──────────────────────────────────────────────────── */
@@ -703,12 +728,12 @@
 
     // ── 2. Overlay configs ──────────────────────────────────────────────────
     const OVERLAYS = {
-      dark:     { bg: 'rgba(0,0,0,0.65)',                                                       text: '#ffffff', accent: '#F5A623' },
-      amber:    { bg: 'rgba(130,65,5,0.80)',                                                     text: '#fff4e0', accent: '#ffd080' },
-      navy:     { bg: 'rgba(8,20,70,0.80)',                                                      text: '#e4edff', accent: '#7aadff' },
-      forest:   { bg: 'rgba(8,48,18,0.80)',                                                      text: '#e4ffe8', accent: '#7affa0' },
-      light:    { bg: 'rgba(238,232,218,0.92)',                                                  text: '#111111', accent: '#8a6000' },
-      gradient: { bg: 'linear-gradient(160deg,rgba(60,12,100,0.88),rgba(170,45,0,0.88))',        text: '#ffffff', accent: '#ffb347' }
+      dark:     { grad_bottom: 'rgba(0,0,0,0.97)',     grad_mid: 'rgba(0,0,0,0.6)',      text: '#ffffff', accent: '#F5A623' },
+      amber:    { grad_bottom: 'rgba(80,30,0,0.97)',   grad_mid: 'rgba(80,30,0,0.55)',   text: '#fff4e0', accent: '#ffd080' },
+      navy:     { grad_bottom: 'rgba(4,10,45,0.97)',   grad_mid: 'rgba(4,10,45,0.55)',   text: '#e4edff', accent: '#7aadff' },
+      forest:   { grad_bottom: 'rgba(3,28,8,0.97)',    grad_mid: 'rgba(3,28,8,0.55)',    text: '#e4ffe8', accent: '#7affa0' },
+      light:    { grad_bottom: 'rgba(220,212,195,0.97)',grad_mid: 'rgba(220,212,195,0.6)',text: '#111111', accent: '#8a6000' },
+      gradient: { grad_bottom: 'rgba(30,5,60,0.97)',   grad_mid: 'rgba(100,25,0,0.6)',   text: '#ffffff', accent: '#ffb347' }
     };
 
     // ── 3. DOM refs ─────────────────────────────────────────────────────────
@@ -944,13 +969,14 @@ Respond ONLY with a valid JSON array. No markdown fences, no preamble. Example:
         wrap.innerHTML = `
           <div class="card">
             <div class="card-bg" style="background-image:url('${state.bgImage}')"></div>
-            <div class="card-overlay" style="background:${ov.bg}"></div>
+            <div class="card-overlay" style="background:linear-gradient(to top, ${ov.grad_bottom} 0%, ${ov.grad_mid} 35%, transparent 65%)"></div>
+            <div class="card-top-bar" style="background:${ov.accent}"></div>
             <div class="card-content">
-              <div class="card-brand" style="color:${ov.accent}">${state.site} · ${state.platform}</div>
-              <div class="card-headline" style="color:${ov.text};font-size:clamp(12px,2vw,18px)">${copy.headline}</div>
-              <div class="card-body"    style="color:${ov.text};font-size:clamp(10px,1.4vw,13px)">${copy.body}</div>
+              <div class="card-headline" style="color:${ov.text};font-size:clamp(20px,3.2vw,32px)">${copy.headline}</div>
+              <div class="card-body"    style="color:${ov.text};font-size:clamp(12px,1.6vw,15px)">${copy.body}</div>
               <div class="card-cta"    style="color:${ov.accent}">${copy.cta} →</div>
             </div>
+            <div class="card-brand-mark">${state.site}</div>
           </div>
           <div class="card-footer">
             <span class="card-var-label">Variation ${idx + 1}</span>
