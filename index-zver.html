@@ -42,11 +42,18 @@
     /* ── Layout ───────────────────────────────────────────────────────── */
     .topbar {
       border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+
+    .topbar-inner {
+      max-width: 1440px;
+      margin: 0 auto;
       padding: 14px 24px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      background: var(--surface);
+      border-left: 1px solid var(--border);
+      border-right: 1px solid var(--border);
     }
 
     .topbar-brand {
@@ -63,10 +70,18 @@
       color: var(--text-muted);
     }
 
-    .app {
+    .app-wrapper {
+      max-width: 1440px;
+      margin: 0 auto;
+      height: calc(100vh - 49px);
       display: grid;
       grid-template-columns: 300px 1fr;
-      height: calc(100vh - 49px);
+      border-left: 1px solid var(--border);
+      border-right: 1px solid var(--border);
+    }
+
+    .app {
+      display: contents;
     }
 
     /* ── Left panel ───────────────────────────────────────────────────── */
@@ -416,12 +431,13 @@
       z-index: 3;
     }
 
-    /* Text anchored to bottom */
+    /* Text anchored to bottom, centered */
     .card-content {
       position: relative;
       z-index: 2;
-      padding: 20px 20px 18px;
+      padding: 24px 28px 22px;
       width: 100%;
+      text-align: center;
     }
 
     /* Headline — movie title energy, big and bold */
@@ -454,7 +470,9 @@
     .card-brand-mark {
       position: absolute;
       bottom: 14px;
-      right: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      right: auto;
       z-index: 4;
       font-family: var(--mono);
       font-size: 9px;
@@ -553,10 +571,13 @@
 
   <!-- ── Top bar ─────────────────────────────────────────────────────────── -->
   <header class="topbar">
-    <a href="https://engineeredai.net" class="topbar-brand">EngineeredAI</a>
-    <span class="topbar-title">Social Card Generator</span>
+    <div class="topbar-inner">
+      <a href="https://engineeredai.net" class="topbar-brand">EngineeredAI</a>
+      <span class="topbar-title">Social Card Generator</span>
+    </div>
   </header>
 
+  <div class="app-wrapper">
   <div class="app">
 
     <!-- ── Left panel ────────────────────────────────────────────────────── -->
@@ -649,6 +670,20 @@
         <img class="upload-preview" id="uploadPreview" alt="Background preview">
       </div>
 
+      <!-- Logo upload -->
+      <div class="section">
+        <div class="section-label">Logo <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:11px;color:var(--text-dim)">— optional</span></div>
+        <div class="upload-zone" id="logoZone">
+          <input type="file" id="logoInput" accept="image/*" aria-label="Upload logo">
+          <div class="upload-icon">◈</div>
+          <p id="logoText">PNG with transparency works best</p>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:6px" id="logoPreviewRow" style="display:none">
+          <img class="upload-preview" id="logoPreview" alt="Logo preview" style="height:40px;width:auto;object-fit:contain;background:var(--surface-3);padding:4px;border-radius:4px">
+          <button id="logoClear" style="font-size:11px;padding:3px 8px;background:transparent;border:1px solid var(--border);border-radius:var(--radius);color:var(--text-muted);cursor:pointer">Remove</button>
+        </div>
+      </div>
+
       <!-- URL fetch -->
       <div class="section">
         <div class="section-label">Post URL</div>
@@ -693,6 +728,7 @@
 
     </main>
   </div>
+  </div>
 
   <script>
     /**
@@ -722,6 +758,7 @@
       dims:       '1080×1080',
       variations: 2,
       bgImage:    null,
+      logoImage:  null,
       scheme:     'dark',
       copies:     []
     };
@@ -808,6 +845,29 @@
         checkReady();
       };
       reader.readAsDataURL(file);
+    });
+
+    // ── 5b. Logo upload ──────────────────────────────────────────────────────
+    $('logoInput').addEventListener('change', e => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = ev => {
+        state.logoImage = ev.target.result;
+        $('logoPreview').src = ev.target.result;
+        $('logoPreviewRow').style.display = 'flex';
+        $('logoText').textContent = file.name;
+        reRender();
+      };
+      reader.readAsDataURL(file);
+    });
+
+    $('logoClear').addEventListener('click', () => {
+      state.logoImage = null;
+      $('logoInput').value = '';
+      $('logoPreviewRow').style.display = 'none';
+      $('logoText').textContent = 'PNG with transparency works best';
+      reRender();
     });
 
     // ── 6. URL fetch ────────────────────────────────────────────────────────
@@ -914,17 +974,32 @@ No markdown fences, no preamble. Just the raw JSON object.`
       const key = apiKeyEl.value.trim();
       if (!key) throw new Error('No API key provided.');
 
-      const prompt = `You are writing social media marketing card copy for the "${state.site}" brand.
-Site tone: ${state.siteTone}.
-Platform: ${state.platform} — write natively for this platform's audience and format.
-Post content: """${content}"""
+      const prompt = `You are a senior copywriter at a top-tier marketing agency.
+Your job is to write promotional ad copy for a social media image card — not a blog summary, not a description. A promotional ad. Think Apple. Think Nike. Think product launch energy.
 
-Generate ${count} distinct variation(s). Each must include:
-- headline: punchy, platform-native, max 10 words, no quotes, no em dashes
-- body: 1-2 sentences, matches site tone, no fluff, no em dashes
-- cta: short call to action, 4-6 words, no em dashes
+Brand: ${state.site}
+Platform: ${state.platform}
+Brand tone: ${state.siteTone}
+Source content: """${content}"""
 
-Respond ONLY with a valid JSON array. No markdown fences, no preamble. Example:
+Rules:
+- The headline is the HOOK. It sells a feeling, a desire, or a sharp idea. Max 7 words. No explaining. No summarizing. Make it land like a punch.
+- The body is ONE sharp sentence. It creates tension or payoff. It does NOT describe the post. It makes the reader feel something or want something.
+- The CTA is a command. 3-5 words. Active. Urgent. No "learn more", no "click here".
+- No em dashes. No quotes around the headline. No fluff. No generic phrases.
+- Each variation must have a completely different angle — different emotion, different hook, different tension.
+
+Think of the post content as the product. You are launching it.
+
+Examples of headline energy (not to copy, just the vibe):
+"Your API key. Your rules."
+"Stop renting AI. Own it."
+"Built by one. Used by thousands."
+"The test suite that never sleeps."
+
+Generate ${count} variations. Each variation must hit a different emotional angle.
+
+Respond ONLY with a raw JSON array. No markdown, no preamble:
 [{"headline":"...","body":"...","cta":"..."}]`;
 
       const res = await fetch('https://api.z.ai/api/coding/paas/v4/chat/completions', {
@@ -955,31 +1030,205 @@ Respond ONLY with a valid JSON array. No markdown fences, no preamble. Example:
       return JSON.parse(arr ? arr[0] : clean);
     }
 
-    // ── 9. Render cards ─────────────────────────────────────────────────────
+    // ── 9. Card design DNA — 4 completely distinct visual identities ────────
+    //
+    // DNA-1: CINEMATIC  — Dark, dramatic. Huge headline bottom-center. Logo small bottom-left.
+    // DNA-2: COLOR BLOCK — Bold solid panel left, character right. Logo in panel top.
+    // ── Card Engine — 8 layouts × 4 moods = 32 combinations ───────────────
+    //
+    // LAYOUTS (8):
+    // 0 — Cinematic Bottom    : gradient bottom, huge headline anchored bottom-center
+    // 1 — Top Stamp           : text top-left, character dominates bottom
+    // 2 — Magazine Center     : full fog overlay, giant centered headline, divider line
+    // 3 — Hype Drop           : accent bar top, diagonal gradient, solid CTA button
+    // 4 — Corner Frame        : thin accent border, text bottom-left, clean image
+    // 5 — Diagonal Slash      : angled text band across lower third
+    // 6 — Minimal Float       : no overlay, text floats with heavy stroke/shadow only
+    // 7 — Badge Stamp         : bold badge/tag element top-left, text bottom
+    //
+    // MOODS (applied via overlay scheme selector — independent of layout):
+    // dark / amber / navy / forest / light / gradient
+    //
+
+    function logoTag(logo, style) {
+      if (!logo) return '';
+      return `<img src="${logo}" style="${style};position:absolute;z-index:5;pointer-events:none;display:block" alt="">`;
+    }
+
+    function logoInline(logo, site, height, filter, mb) {
+      if (logo) return `<img src="${logo}" style="height:${height};width:auto;${filter};margin-bottom:${mb}" alt="">`;
+      return `<div style="font-family:var(--mono);font-size:9px;color:${filter.includes('invert') ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.5)'};letter-spacing:0.12em;text-transform:uppercase;margin-bottom:${mb}">${site}</div>`;
+    }
+
+    // Fallback bg per layout when no image uploaded
+    const FALLBACKS = [
+      'linear-gradient(160deg,#0a0a0a 0%,#111827 50%,#0a0a0a 100%)',
+      'linear-gradient(135deg,#0d0d0d 0%,#0d1117 100%)',
+      'linear-gradient(180deg,#111 0%,#1c1c1c 100%)',
+      'linear-gradient(135deg,#0a0a0a 0%,#1a0800 60%,#0d0d0d 100%)',
+      'linear-gradient(160deg,#080808 0%,#111 100%)',
+      'linear-gradient(135deg,#0d0d0d 0%,#0a0f1e 100%)',
+      'linear-gradient(180deg,#111 0%,#222 100%)',
+      'linear-gradient(135deg,#0a0a0a 0%,#1a1000 100%)'
+    ];
+
+    function bgStyle(bg, pos, idx) {
+      return bg
+        ? `background:url('${bg}') ${pos} / cover no-repeat`
+        : `background:${FALLBACKS[idx]}`;
+    }
+
+    // Text shadow strong enough to work on any background
+    const TS_HARD  = 'text-shadow:0 2px 0 rgba(0,0,0,1),0 4px 20px rgba(0,0,0,1),0 0 60px rgba(0,0,0,0.95)';
+    const TS_MED   = 'text-shadow:0 1px 0 rgba(0,0,0,1),0 2px 12px rgba(0,0,0,1)';
+    // Stroke alternative for light/clean moods
+    const STROKE   = '-webkit-text-stroke:1.5px rgba(0,0,0,0.8)';
+
+    function buildLayout(idx, copy, ov, bg, logo, site) {
+
+      // ── 0: CINEMATIC BOTTOM ─────────────────────────────────────────────
+      if (idx === 0) return `
+        <div class="card" style="align-items:flex-end">
+          <div class="card-bg" style="${bgStyle(bg,'center top',0)}"></div>
+          <div class="card-overlay" style="background:linear-gradient(to top,${ov.grad_bottom} 0%,${ov.grad_bottom} 18%,${ov.grad_mid} 45%,transparent 68%)"></div>
+          <div style="position:relative;z-index:2;width:100%;padding:28px 28px 24px;text-align:center">
+            <div style="color:${ov.text};font-size:clamp(30px,5.5vw,56px);font-weight:800;line-height:1.0;letter-spacing:-0.02em;margin-bottom:12px;${TS_HARD}">${copy.headline}</div>
+            <div style="color:${ov.text};font-size:clamp(13px,1.8vw,16px);line-height:1.5;opacity:0.92;${TS_MED};max-width:82%;margin:0 auto 16px">${copy.body}</div>
+            <div style="color:${ov.accent};font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase">${copy.cta} →</div>
+          </div>
+          ${logoTag(logo,'bottom:18px;left:20px;height:26px;width:auto;opacity:0.65;filter:brightness(0) invert(1)')}
+        </div>`;
+
+      // ── 1: TOP STAMP ────────────────────────────────────────────────────
+      if (idx === 1) return `
+        <div class="card" style="align-items:flex-start">
+          <div class="card-bg" style="${bgStyle(bg,'center bottom',1)}"></div>
+          <div class="card-overlay" style="background:linear-gradient(to bottom,${ov.grad_bottom} 0%,${ov.grad_mid} 38%,transparent 62%)"></div>
+          <div style="position:relative;z-index:2;width:100%;padding:24px 24px 0">
+            ${logoInline(logo, site, '28px', 'filter:brightness(0) invert(1);opacity:0.85', '12px')}
+            <div style="color:${ov.text};font-size:clamp(26px,4.8vw,50px);font-weight:800;line-height:1.05;letter-spacing:-0.02em;margin-bottom:10px;${TS_HARD}">${copy.headline}</div>
+            <div style="color:${ov.text};font-size:clamp(12px,1.6vw,15px);line-height:1.5;opacity:0.9;${TS_MED};margin-bottom:14px">${copy.body}</div>
+            <div style="color:${ov.accent};font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase">${copy.cta} →</div>
+          </div>
+        </div>`;
+
+      // ── 2: MAGAZINE CENTER ──────────────────────────────────────────────
+      if (idx === 2) return `
+        <div class="card" style="align-items:center;justify-content:center">
+          <div class="card-bg" style="${bgStyle(bg,'center center',2)}"></div>
+          <div style="position:absolute;inset:0;background:rgba(0,0,0,0.62);z-index:1"></div>
+          <div style="position:relative;z-index:2;width:100%;padding:24px 28px;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%">
+            ${logoInline(logo, site, '38px', 'filter:brightness(0) invert(1);opacity:0.9', '18px')}
+            <div style="color:${ov.text};font-size:clamp(34px,6.2vw,66px);font-weight:900;line-height:0.98;letter-spacing:-0.03em;${TS_HARD};margin-bottom:14px">${copy.headline}</div>
+            <div style="width:44px;height:3px;background:${ov.accent};margin-bottom:14px;opacity:0.9"></div>
+            <div style="color:${ov.text};font-size:clamp(12px,1.7vw,15px);line-height:1.6;opacity:0.88;max-width:76%;${TS_MED}">${copy.body}</div>
+            <div style="color:${ov.accent};margin-top:18px;font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase">${copy.cta} →</div>
+          </div>
+        </div>`;
+
+      // ── 3: HYPE DROP ────────────────────────────────────────────────────
+      if (idx === 3) return `
+        <div class="card" style="align-items:flex-end">
+          <div class="card-bg" style="${bgStyle(bg,'center center',3)}"></div>
+          <div style="position:absolute;inset:0;background:linear-gradient(150deg,${ov.grad_bottom} 0%,${ov.grad_mid} 38%,transparent 65%);z-index:1"></div>
+          <div style="position:absolute;top:0;left:0;right:0;height:5px;background:${ov.accent};z-index:5"></div>
+          ${logoTag(logo,'top:14px;right:16px;height:28px;width:auto;filter:brightness(0) invert(1);opacity:0.8')}
+          <div style="position:relative;z-index:2;width:100%;padding:22px 22px 20px;background:linear-gradient(to top,rgba(0,0,0,0.92) 0%,rgba(0,0,0,0.65) 55%,transparent 100%)">
+            <div style="color:${ov.accent};font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;margin-bottom:8px">${site} ///</div>
+            <div style="color:${ov.text};font-size:clamp(28px,5vw,52px);font-weight:900;line-height:1.0;letter-spacing:-0.02em;margin-bottom:10px;${TS_HARD}">${copy.headline}</div>
+            <div style="color:${ov.text};font-size:clamp(12px,1.6vw,14px);line-height:1.5;opacity:0.88;${TS_MED};margin-bottom:14px">${copy.body}</div>
+            <div style="color:#000;background:${ov.accent};display:inline-block;font-family:var(--mono);font-size:10px;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;padding:8px 16px;border-radius:2px">${copy.cta} →</div>
+          </div>
+        </div>`;
+
+      // ── 4: CORNER FRAME ─────────────────────────────────────────────────
+      if (idx === 4) return `
+        <div class="card" style="align-items:flex-end">
+          <div class="card-bg" style="${bgStyle(bg,'center center',4)}"></div>
+          <div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,0.88) 0%,rgba(0,0,0,0.3) 40%,transparent 65%);z-index:1"></div>
+          <div style="position:absolute;top:12px;left:12px;right:12px;bottom:12px;border:1.5px solid ${ov.accent};opacity:0.5;z-index:3;border-radius:4px;pointer-events:none"></div>
+          ${logoTag(logo,'top:22px;left:22px;height:24px;width:auto;filter:brightness(0) invert(1);opacity:0.75')}
+          <div style="position:relative;z-index:4;width:100%;padding:22px 24px 22px;text-align:left">
+            <div style="color:${ov.text};font-size:clamp(26px,4.8vw,50px);font-weight:800;line-height:1.05;letter-spacing:-0.02em;margin-bottom:10px;${TS_HARD}">${copy.headline}</div>
+            <div style="color:${ov.text};font-size:clamp(12px,1.6vw,14px);line-height:1.5;opacity:0.88;${TS_MED};margin-bottom:14px">${copy.body}</div>
+            <div style="color:${ov.accent};font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase">${copy.cta} →</div>
+          </div>
+        </div>`;
+
+      // ── 5: DIAGONAL SLASH ───────────────────────────────────────────────
+      if (idx === 5) return `
+        <div class="card" style="align-items:flex-end">
+          <div class="card-bg" style="${bgStyle(bg,'center top',5)}"></div>
+          <div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,0.95) 0%,rgba(0,0,0,0.5) 30%,transparent 55%);z-index:1"></div>
+          <div style="position:absolute;bottom:0;left:0;right:0;height:48%;background:${ov.grad_bottom};clip-path:polygon(0 30%,100% 0%,100% 100%,0% 100%);z-index:2;opacity:0.92"></div>
+          ${logoTag(logo,'top:16px;right:16px;height:26px;width:auto;filter:brightness(0) invert(1);opacity:0.7')}
+          <div style="position:relative;z-index:3;width:100%;padding:20px 24px 22px">
+            <div style="color:${ov.accent};font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;margin-bottom:8px">${site}</div>
+            <div style="color:${ov.text};font-size:clamp(26px,4.8vw,50px);font-weight:800;line-height:1.0;letter-spacing:-0.02em;margin-bottom:10px;${TS_HARD}">${copy.headline}</div>
+            <div style="color:${ov.text};font-size:clamp(11px,1.5vw,14px);line-height:1.5;opacity:0.88;${TS_MED};margin-bottom:12px">${copy.body}</div>
+            <div style="color:${ov.accent};font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase">${copy.cta} →</div>
+          </div>
+        </div>`;
+
+      // ── 6: MINIMAL FLOAT ────────────────────────────────────────────────
+      if (idx === 6) return `
+        <div class="card" style="align-items:flex-end">
+          <div class="card-bg" style="${bgStyle(bg,'center center',6)}"></div>
+          <div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,0.78) 0%,transparent 50%);z-index:1"></div>
+          ${logoTag(logo,'top:18px;left:18px;height:24px;width:auto;filter:brightness(0) invert(1);opacity:0.6')}
+          <div style="position:relative;z-index:2;width:100%;padding:20px 22px 20px;text-align:left">
+            <div style="color:#ffffff;font-size:clamp(30px,5.5vw,56px);font-weight:900;line-height:1.0;letter-spacing:-0.03em;margin-bottom:10px;${TS_HARD};${STROKE}">${copy.headline}</div>
+            <div style="color:rgba(255,255,255,0.9);font-size:clamp(12px,1.6vw,14px);line-height:1.5;${TS_MED};margin-bottom:12px">${copy.body}</div>
+            <div style="display:inline-block;border:1.5px solid ${ov.accent};color:${ov.accent};font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;padding:6px 14px">${copy.cta} →</div>
+          </div>
+        </div>`;
+
+      // ── 7: BADGE STAMP ──────────────────────────────────────────────────
+      return `
+        <div class="card" style="align-items:flex-end">
+          <div class="card-bg" style="${bgStyle(bg,'center top',7)}"></div>
+          <div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,0.9) 0%,rgba(0,0,0,0.2) 45%,transparent 65%);z-index:1"></div>
+          <div style="position:absolute;top:16px;left:16px;z-index:4;background:${ov.accent};padding:6px 12px;border-radius:2px">
+            ${logo
+              ? `<img src="${logo}" style="height:20px;width:auto;display:block;filter:brightness(0)" alt="">`
+              : `<span style="font-family:var(--mono);font-size:9px;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:#000">${site}</span>`
+            }
+          </div>
+          <div style="position:relative;z-index:2;width:100%;padding:20px 22px 22px">
+            <div style="color:${ov.text};font-size:clamp(28px,5.2vw,54px);font-weight:800;line-height:1.0;letter-spacing:-0.02em;margin-bottom:10px;${TS_HARD}">${copy.headline}</div>
+            <div style="color:${ov.text};font-size:clamp(12px,1.6vw,14px);line-height:1.5;opacity:0.9;${TS_MED};margin-bottom:14px">${copy.body}</div>
+            <div style="color:${ov.accent};font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase">${copy.cta} →</div>
+          </div>
+        </div>`;
+    }
+
+    const LAYOUT_NAMES = [
+      'Cinematic', 'Top Stamp', 'Magazine', 'Hype Drop',
+      'Corner Frame', 'Diagonal Slash', 'Minimal Float', 'Badge Stamp'
+    ];
+
     function renderCards() {
       const vCount = state.copies.length;
       cardsGrid.className = `cards-grid v${vCount}`;
       cardsGrid.innerHTML = '';
 
+      // Shuffle 8 layout indices, pick first vCount — no repeats in a batch
+      const pool = [0,1,2,3,4,5,6,7];
+      for (let i = pool.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [pool[i], pool[j]] = [pool[j], pool[i]];
+      }
+
       state.copies.forEach((copy, idx) => {
-        const ov   = OVERLAYS[state.scheme];
-        const wrap = document.createElement('div');
-        wrap.className = `card-wrap ${state.ratio}`;
+        const ov        = OVERLAYS[state.scheme];
+        const layoutIdx = pool[idx];
+        const wrap      = document.createElement('div');
+        wrap.className  = `card-wrap ${state.ratio}`;
 
         wrap.innerHTML = `
-          <div class="card">
-            <div class="card-bg" style="background-image:url('${state.bgImage}')"></div>
-            <div class="card-overlay" style="background:linear-gradient(to top, ${ov.grad_bottom} 0%, ${ov.grad_mid} 35%, transparent 65%)"></div>
-            <div class="card-top-bar" style="background:${ov.accent}"></div>
-            <div class="card-content">
-              <div class="card-headline" style="color:${ov.text};font-size:clamp(20px,3.2vw,32px)">${copy.headline}</div>
-              <div class="card-body"    style="color:${ov.text};font-size:clamp(12px,1.6vw,15px)">${copy.body}</div>
-              <div class="card-cta"    style="color:${ov.accent}">${copy.cta} →</div>
-            </div>
-            <div class="card-brand-mark">${state.site}</div>
-          </div>
+          ${buildLayout(layoutIdx, copy, ov, state.bgImage || null, state.logoImage || null, state.site)}
           <div class="card-footer">
-            <span class="card-var-label">Variation ${idx + 1}</span>
+            <span class="card-var-label">${LAYOUT_NAMES[layoutIdx]}</span>
             <button class="copy-btn" data-idx="${idx}">Copy text</button>
           </div>`;
 
@@ -1018,10 +1267,9 @@ Respond ONLY with a valid JSON array. No markdown fences, no preamble. Example:
     postContent.addEventListener('input', checkReady);
 
     function checkReady() {
-      // Need: API key + image + content
+      // Need: API key + content (image is optional — fallback backgrounds used if none)
       genBtn.disabled = !(
         apiKeyEl.value.trim() &&
-        state.bgImage &&
         postContent.value.trim()
       );
     }
